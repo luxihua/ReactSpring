@@ -1,70 +1,158 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Chap04. 리액트와 API 서버 통신
 
-## Available Scripts
+- 대부분의 프론트엔드 기술은 비동기 통신을 필요로 함.
 
-In the project directory, you can run:
+- 리액트도 서버 데이터를 Ajax를 활용하여 기능을 구현함.
 
-### `npm start`
+- 개발 목표 
+    1. Axios 라이브러리를 이용한 서버와의 통신
+    2. useEffect()을 활용한 비동기 처리와 상태 변경
+    3. 커스텀 훅을 이용한 공통 코드 재사용하기
+    4. 컴포넌트에서 모달창을 이용해서 결과 보여주기
+    
+    
+-------------
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Ajax 통신 처리
 
-### `npm test`
+- Axios 라이브러리 추가 : npm install axios
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---------------
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## useEffect(0 
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+ - 일반적으로, 컴포넌트 상태 변경 시 렌더링과 함께 Axios 함수를 재호출하여 무한한 반복 구조를 발생시킨다.
+ 
+ - 이때, useEffect()을 사용하면 컴포넌트 내에서 특정 조건을 충족할 때 동작하는 방법을 제공 
+    * 컴포넌트 실행 시 단 한번만 실행되는 비동기 처리
+    * 컴포넌트의 여러 상태 중 특정 상태 변경 시 비동기 처리
+    
+- useEffect 사용
+    1. 조회를 위한 ReadComponent 컴포넌트 생성
 
-### `npm run eject`
+    ``` Javascript
+    import {useEffect, useState } from "react"
+    import {getOne} from "../../api/todoApi"
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+    const initState = {tno:0 , title: ' ', writer: ' ', dueDate: null, complete: false }
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    const ReadComponent = ( {tno} ) => {
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+        const [todo, setTodo] = useState(initState) // 아직 todo는 사용하지 않음
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+        useEffect( () => {
+            getOne(tno).then(data => {
+                console.log(data)
+                setTodo(data)
+            })
+        }, [tno])
 
-## Learn More
+        return (
+            <div></div>
+        )
+    }
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    export default ReadComponent
+    ```
+    
+    
+    2. ReadPage 컴포넌트에 ReadComponent import 시키기
+    
+    ```Javascript
+    import { useCallback } from "react";
+    import { createSearchParams, useNavigate, useParams, useSearchParams } from "react-router-dom";
+    import ReadComponent from "../../components/todo/ReadComponent";
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+    const ReadPage = () => {
 
-### Code Splitting
+        const {tno} = useParams()
+        const navigate = useNavigate()
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+        const [queryParams] = useSearchParams()
 
-### Analyzing the Bundle Size
+        const page = queryParams.get("page") ? parseInt(queryParams.get("page")) : 1
+        const size = queryParams.get("size") ? parseInt(queryParams.get("size")) : 10
+        const queryStr = createSearchParams({page, size}).toString()
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+        const moveToModify = useCallback( (tno) => {
+            navigate({pathname: '/todo/modify/${tno}', search: queryStr})
+        }, [tno, page, size])
 
-### Making a Progressive Web App
+        const moveToList = useCallback( () => {
+            navigate({pathname:'/todo/list', search: queryStr})
+        }, [page, size])
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+        return (
+            <div className="font-extrabold w-full bg-white mt-6">
+                <div className="text-2xl"> Todo Read Page Component {tno}  </div>
+                <ReadComponent tno = {tno}></ReadComponent>
+            </div>
+        );
+    }
 
-### Advanced Configuration
+    export default ReadPage;
+    ```
+    
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+    
+    * 충돌점
+    - 에러 내용 : 
+    ``` Network Error
+    AxiosError: Network Error
+        at XMLHttpRequest.handleError (http://localhost:3000/static/js/vendors-node_modules_axios_lib_axios_js.chunk.js:244:14) 
+    ```
+    - npm start 시 FE쪽 http://localhost:3030 과 서버의 http://localhost:8080 이 CORS 충돌 문제로 실행되지 않음
+    - 해결방법 : React쪽과 Server 두곳에 추가 설정 필요함.
+        1. SpringBoot에서 해결하는 방법
+            * CustomServletConfig.java
+                ``` Java
+                @Configuration
+                public class CustomServletConfig implements WebMvcConfigurer{
+                  @Override
+                  public void addFormatters(FormatterRegistry registry) {
+                        registry.addFormatter(new LocalDateFormatter()); }
+                    @Override
+                    public void addCorsMappings(CorsRegistry registry) {
+                    registry.addMapping("/**").allowedOrigins("*") 
+                    .allowedMethods("HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS") 
+                    .allowedOrigins("http://localhost:3000")
+                    .maxAge(300)
+                    .allowedHeaders("Authorization", "Cache-Control", "Content-Type");
+                    }
+                }
+                ```
+                
+        2. React에서 해결하는 방법
+          * package.json 
+            ``` json
+            "proxy": "http://localhost:8080" 
+            ```
+            
+            
+------------------------
+            
+            
+## 네비게이션 관련 커스텀 훅
 
-### Deployment
+- 다시 목록 화면으로 이동하는 기능 추가(ReadComponent)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 조회 화면의 버튼 처리
+  
+  - 페이지 컴포넌트
+    1. React-Router를 이용해 내용 컴포넌트에 필요한 기능과 속성 설정.
+    2. ReadPage에 라우팅 함수 정의 및 ReadComponent에 함수 속성 전달.
+  
+  - 내용 컴포넌트
+    1. 실제 화면 구성, 버튼 등 내용 처리.
+    2. ReadComponent에 전체 구성 요소 처리
+    
+    
 
-### `npm run build` fails to minify
+    
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+
