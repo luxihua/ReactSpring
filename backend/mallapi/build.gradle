@@ -33,6 +33,9 @@ dependencies {
 	// ModelMapper 라이브러리 추가
 	implementation 'org.modelmapper:modelmapper:3.1.1'
 
+	// 썸네일 Thumbnailator 라이브버리 추가
+	implementation 'net.coobird:thumbnailator:0.4.19'
+
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
